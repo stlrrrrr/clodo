@@ -30,17 +30,17 @@ jobs:
           pip install pyinstaller
 
       - name: Compilation du .exe
-        run: pyinstaller --onefile --windowed --name "ZQSD-Loop" zqsd_loop.py
+        run: pyinstaller --onefile --windowed --name "zmn5" zqsd_loop.py
 
       - name: Publication de l'artefact
         uses: actions/upload-artifact@v4
         with:
-          name: ZQSD-Loop-windows
-          path: dist/ZQSD-Loop.exe
+          name: zmn5-windows
+          path: dist/zmn5.exe
 
       # Si on pousse un tag "v...", on attache aussi l'exe à une Release.
       - name: Création de la Release (sur tag)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/ZQSD-Loop.exe
+          files: dist/zmn5.exe

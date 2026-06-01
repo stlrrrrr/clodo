@@ -1,4 +1,4 @@
-# ZQSD Loop
+# .gg/zmn5
 
 Petite appli qui répète en boucle les touches **Z, Q, S, D** tant qu'elle est
 activée. Idéale pour les jeux : elle envoie de vraies frappes clavier au système.
@@ -7,7 +7,9 @@ activée. Idéale pour les jeux : elle envoie de vraies frappes clavier au syst�
 
 - Interface minimale (tkinter).
 - **Délai réglable en millisecondes** entre chaque frappe.
-- Touche raccourci **F8** pour démarrer / arrêter la boucle (ou le bouton).
+- **Touche raccourci configurable** pour démarrer / arrêter la boucle
+  (F8 par défaut). Clique sur le bouton de la touche, puis appuie sur la
+  nouvelle touche souhaitée.
 
 ## Installation
 
@@ -34,8 +36,8 @@ machine Windows à chaque push de la branche.
 
 1. Sur GitHub, onglet **Actions** → workflow **Build Windows EXE**.
 2. Ouvre le dernier run (ou lance-le via **Run workflow**).
-3. En bas, télécharge l'artefact **`ZQSD-Loop-windows`** → il contient
-   `ZQSD-Loop.exe`.
+3. En bas, télécharge l'artefact **`zmn5-windows`** → il contient
+   `zmn5.exe`.
 
 Astuce : pousse un tag `vX.Y` (ex. `git tag v1.0 && git push origin v1.0`)
 pour attacher directement l'exe à une *Release* GitHub.
@@ -44,10 +46,10 @@ pour attacher directement l'exe à une *Release* GitHub.
 
 ```bash
 pip install -r requirements.txt pyinstaller
-pyinstaller --onefile --windowed --name "ZQSD-Loop" zqsd_loop.py
+pyinstaller --onefile --windowed --name "zmn5" zqsd_loop.py
 ```
 
-Le fichier est généré dans `dist/ZQSD-Loop.exe`.
+Le fichier est généré dans `dist/zmn5.exe`.
 
 ## Notes par plateforme
 
