@@ -140,7 +140,11 @@ class ZQSDLoop:
 
         self._build_ui()
 
-        # Écoute le clavier en arrière-plan pour le raccourci.
+        # Hook clavier BAS NIVEAU, à l'échelle du système entier.
+        # Il capte la touche raccourci même si le jeu est au premier plan et
+        # même si d'autres touches sont maintenues (déplacement en cours).
+        # Pour qu'il reçoive aussi les événements d'un jeu lancé en admin,
+        # l'appli doit être admin (l'exe est compilé avec --uac-admin).
         self.listener = Listener(on_press=self._on_key)
         self.listener.daemon = True
         self.listener.start()
