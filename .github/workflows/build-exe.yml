@@ -1,0 +1,46 @@
+name: Build Windows EXE
+
+# Compile zqsd_loop.py en un .exe Windows autonome.
+# Déclenché manuellement, sur push de la branche, ou sur tag de version.
+on:
+  push:
+    branches:
+      - "claude/**"
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Récupération du code
+        uses: actions/checkout@v4
+
+      - name: Installation de Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Installation des dépendances
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Compilation du .exe
+        run: pyinstaller --onefile --windowed --name "ZQSD-Loop" zqsd_loop.py
+
+      - name: Publication de l'artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZQSD-Loop-windows
+          path: dist/ZQSD-Loop.exe
+
+      # Si on pousse un tag "v...", on attache aussi l'exe à une Release.
+      - name: Création de la Release (sur tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/ZQSD-Loop.exe

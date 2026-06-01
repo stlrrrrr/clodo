@@ -25,6 +25,30 @@ python zqsd_loop.py
 2. Appuie sur **F8** (ou clique sur *Démarrer*) pour lancer la boucle.
 3. Appuie de nouveau sur **F8** pour l'arrêter.
 
+## Obtenir le `.exe` Windows
+
+### Option A — build automatique (GitHub Actions, rien à installer)
+
+Un workflow (`.github/workflows/build-exe.yml`) compile le `.exe` sur une
+machine Windows à chaque push de la branche.
+
+1. Sur GitHub, onglet **Actions** → workflow **Build Windows EXE**.
+2. Ouvre le dernier run (ou lance-le via **Run workflow**).
+3. En bas, télécharge l'artefact **`ZQSD-Loop-windows`** → il contient
+   `ZQSD-Loop.exe`.
+
+Astuce : pousse un tag `vX.Y` (ex. `git tag v1.0 && git push origin v1.0`)
+pour attacher directement l'exe à une *Release* GitHub.
+
+### Option B — compiler soi-même sur un PC Windows
+
+```bash
+pip install -r requirements.txt pyinstaller
+pyinstaller --onefile --windowed --name "ZQSD-Loop" zqsd_loop.py
+```
+
+Le fichier est généré dans `dist/ZQSD-Loop.exe`.
+
 ## Notes par plateforme
 
 - **Windows** : fonctionne directement.
