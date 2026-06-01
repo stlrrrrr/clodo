@@ -70,6 +70,18 @@ pyinstaller --onefile --windowed --name "zmn5" zqsd_loop.py
 
 Le fichier est généré dans `dist/zmn5.exe`.
 
+## Icône personnalisée
+
+Pour remplacer l'icône (la plume) par ta propre image :
+
+1. Place un fichier **`icon.png`** à la racine du repo (idéalement **carré**,
+   256x256 px ; le PNG peut avoir un fond transparent).
+2. Pousse le fichier. Le build le convertit automatiquement en `icon.ico`,
+   l'applique à `zmn5.exe` (fichier + barre des tâches) et l'embarque pour la
+   fenêtre de l'appli.
+
+Aucune autre manip : si `icon.png` est absent, l'icône par défaut est conservée.
+
 ## Notes par plateforme
 
 - **Windows** : fonctionne directement.

@@ -13,6 +13,7 @@ WASD : on envoie donc les scan codes de ces positions physiques.
 Dépendance : pynput (pour écouter la touche raccourci).
 """
 
+import os
 import sys
 import threading
 import time
@@ -112,6 +113,12 @@ else:
         _kb.release(_SCAN_TO_CHAR.get(scan, "z"))
 
 
+def resource_path(name):
+    """Chemin d'une ressource, qu'on tourne depuis le source ou l'exe PyInstaller."""
+    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, name)
+
+
 def key_label(key):
     """Renvoie un nom lisible pour une touche pynput."""
     if isinstance(key, KeyCode) and key.char is not None:
@@ -144,6 +151,7 @@ class ZQSDLoop:
     def _build_ui(self):
         self.root.title(APP_NAME)
         self.root.resizable(False, False)
+        self._set_icon()
 
         frame = tk.Frame(self.root, padx=16, pady=16)
         frame.pack()
@@ -184,6 +192,24 @@ class ZQSDLoop:
                 fg="orange",
                 font=("TkDefaultFont", 8),
             ).grid(row=6, column=0, columnspan=2, pady=(4, 0))
+
+    def _set_icon(self):
+        """Applique l'icône personnalisée à la fenêtre si elle est présente."""
+        ico = resource_path("icon.ico")
+        if os.path.exists(ico):
+            try:
+                self.root.iconbitmap(default=ico)
+                return
+            except tk.TclError:
+                pass
+        # Repli : icône PNG (utile hors Windows).
+        png = resource_path("icon.png")
+        if os.path.exists(png):
+            try:
+                self._icon_img = tk.PhotoImage(file=png)
+                self.root.iconphoto(True, self._icon_img)
+            except tk.TclError:
+                pass
 
     def _hint_text(self):
         return f"{key_label(self.toggle_key)} démarre / arrête la boucle"

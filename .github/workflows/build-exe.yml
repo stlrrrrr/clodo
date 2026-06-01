@@ -27,10 +27,24 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pyinstaller
+          pip install pyinstaller pillow
+
+      - name: Préparer l'icône (icon.png -> icon.ico)
+        run: |
+          if (Test-Path icon.png) {
+            python -c "from PIL import Image; Image.open('icon.png').save('icon.ico', sizes=[(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)])"
+            echo "Icône générée depuis icon.png"
+          } else {
+            echo "Pas de icon.png : icône par défaut conservée"
+          }
 
       - name: Compilation du .exe
-        run: pyinstaller --onefile --windowed --uac-admin --name "zmn5" zqsd_loop.py
+        run: |
+          if (Test-Path icon.ico) {
+            pyinstaller --onefile --windowed --uac-admin --icon icon.ico --add-data "icon.ico;." --name "zmn5" zqsd_loop.py
+          } else {
+            pyinstaller --onefile --windowed --uac-admin --name "zmn5" zqsd_loop.py
+          }
 
       - name: Publication de l'artefact
         uses: actions/upload-artifact@v4
