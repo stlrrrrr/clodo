@@ -128,6 +128,28 @@ def key_label(key):
     return str(key)
 
 
+def key_id(key):
+    """Identité STABLE d'une touche, robuste aux modificateurs (Maj/Ctrl/Alt).
+
+    On compare en priorité par 'virtual key code' (vk) : il est indépendant de
+    l'état des modificateurs et de la casse, contrairement au caractère produit.
+    C'est ce qui permet de reconnaître F8 même quand on maintient Maj + Z
+    (en train de courir), cas où l'égalité directe d'objets pynput peut échouer.
+    """
+    if key is None:
+        return None
+    # KeyCode -> .vk ; Key (ex: Key.f8) -> .value est un KeyCode porteur du vk.
+    vk = getattr(key, "vk", None)
+    if vk is None:
+        vk = getattr(getattr(key, "value", None), "vk", None)
+    if vk is not None:
+        return ("vk", vk)
+    char = getattr(key, "char", None)
+    if char:
+        return ("char", char.lower())
+    return ("repr", str(key))
+
+
 class ZQSDLoop:
     def __init__(self, root):
         self.root = root
@@ -136,6 +158,7 @@ class ZQSDLoop:
         self.delay_ms = 100               # durée de maintien de chaque touche
         self.worker = None                # thread qui envoie les frappes
         self.toggle_key = DEFAULT_TOGGLE_KEY
+        self.toggle_id = key_id(DEFAULT_TOGGLE_KEY)  # identité vk pour la comparaison
         self.capturing = False            # en train de capturer une nouvelle touche ?
 
         self._build_ui()
@@ -269,13 +292,19 @@ class ZQSDLoop:
                 key_up(held)
 
     def _on_key(self, key):
-        if self.capturing:
-            self.root.after(0, lambda: self._set_toggle_key(key))
-        elif key == self.toggle_key:
-            self.root.after(0, self.toggle)
+        # On encapsule tout : une exception ici tuerait le listener (donc le
+        # raccourci) silencieusement. On compare par vk pour ignorer Maj/Ctrl/Alt.
+        try:
+            if self.capturing:
+                self.root.after(0, lambda: self._set_toggle_key(key))
+            elif key_id(key) == self.toggle_id:
+                self.root.after(0, self.toggle)
+        except Exception:
+            pass
 
     def _set_toggle_key(self, key):
         self.toggle_key = key
+        self.toggle_id = key_id(key)
         self.capturing = False
         self.key_button.config(text=key_label(key))
         self.hint.config(text=self._hint_text())
