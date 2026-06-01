@@ -30,7 +30,7 @@ jobs:
           pip install pyinstaller
 
       - name: Compilation du .exe
-        run: pyinstaller --onefile --windowed --name "zmn5" zqsd_loop.py
+        run: pyinstaller --onefile --windowed --uac-admin --name "zmn5" zqsd_loop.py
 
       - name: Publication de l'artefact
         uses: actions/upload-artifact@v4

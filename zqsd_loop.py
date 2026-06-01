@@ -2,12 +2,18 @@
 .gg/zmn5 — répète en boucle les touches Z, Q, S, D tant que c'est activé.
 
 - Interface minimale (tkinter).
-- Délai réglable en millisecondes entre chaque frappe.
+- Délai réglable en millisecondes (durée pendant laquelle chaque touche est maintenue).
 - Touche raccourci configurable pour démarrer / arrêter la boucle.
 
-Dépendance : pynput (voir requirements.txt).
+Pour fonctionner DANS LES JEUX (DirectInput / Raw Input), on envoie de vrais
+scan codes matériels via l'API Windows SendInput, et non de simples frappes
+virtuelles. Sur AZERTY, les touches ZQSD occupent la même position physique que
+WASD : on envoie donc les scan codes de ces positions physiques.
+
+Dépendance : pynput (pour écouter la touche raccourci).
 """
 
+import sys
 import threading
 import time
 import tkinter as tk
@@ -18,11 +24,92 @@ from pynput.keyboard import Controller, Key, KeyCode, Listener
 # Nom affiché de l'application.
 APP_NAME = ".gg/zmn5"
 
-# Les touches répétées en boucle, dans l'ordre.
-SEQUENCE = ["z", "q", "s", "d"]
+IS_WINDOWS = sys.platform == "win32"
 
 # Touche raccourci par défaut pour activer / désactiver la boucle.
 DEFAULT_TOGGLE_KEY = Key.f8
+
+# Séquence répétée : (label affiché, scan code matériel set 1).
+# Les scan codes correspondent aux positions physiques de WASD,
+# c'est-à-dire les touches Z, Q, S, D d'un clavier AZERTY.
+SEQUENCE = [
+    ("Z", 0x11),  # position physique du W
+    ("Q", 0x1E),  # position physique du A
+    ("S", 0x1F),
+    ("D", 0x20),
+]
+
+
+# ---------------------------------------------------------------------------
+# Envoi de frappes au niveau matériel (scan codes) — fonctionne dans les jeux.
+# ---------------------------------------------------------------------------
+if IS_WINDOWS:
+    import ctypes
+    from ctypes import wintypes
+
+    ULONG_PTR = ctypes.POINTER(ctypes.c_ulong)
+
+    class _MOUSEINPUT(ctypes.Structure):
+        _fields_ = (
+            ("dx", wintypes.LONG),
+            ("dy", wintypes.LONG),
+            ("mouseData", wintypes.DWORD),
+            ("dwFlags", wintypes.DWORD),
+            ("time", wintypes.DWORD),
+            ("dwExtraInfo", ULONG_PTR),
+        )
+
+    class _KEYBDINPUT(ctypes.Structure):
+        _fields_ = (
+            ("wVk", wintypes.WORD),
+            ("wScan", wintypes.WORD),
+            ("dwFlags", wintypes.DWORD),
+            ("time", wintypes.DWORD),
+            ("dwExtraInfo", ULONG_PTR),
+        )
+
+    class _HARDWAREINPUT(ctypes.Structure):
+        _fields_ = (
+            ("uMsg", wintypes.DWORD),
+            ("wParamL", wintypes.WORD),
+            ("wParamH", wintypes.WORD),
+        )
+
+    class _INPUTUNION(ctypes.Union):
+        _fields_ = (("mi", _MOUSEINPUT), ("ki", _KEYBDINPUT), ("hi", _HARDWAREINPUT))
+
+    class _INPUT(ctypes.Structure):
+        _fields_ = (("type", wintypes.DWORD), ("u", _INPUTUNION))
+
+    _INPUT_KEYBOARD = 1
+    _KEYEVENTF_SCANCODE = 0x0008
+    _KEYEVENTF_KEYUP = 0x0002
+
+    _SendInput = ctypes.windll.user32.SendInput
+
+    def _send_scancode(scan, keyup):
+        flags = _KEYEVENTF_SCANCODE | (_KEYEVENTF_KEYUP if keyup else 0)
+        ki = _KEYBDINPUT(wVk=0, wScan=scan, dwFlags=flags, time=0, dwExtraInfo=None)
+        inp = _INPUT(type=_INPUT_KEYBOARD, u=_INPUTUNION(ki=ki))
+        _SendInput(1, ctypes.byref(inp), ctypes.sizeof(inp))
+
+    def key_down(scan):
+        _send_scancode(scan, keyup=False)
+
+    def key_up(scan):
+        _send_scancode(scan, keyup=True)
+
+else:
+    # Repli (développement hors Windows) : frappes virtuelles via pynput.
+    # Ne fonctionnera PAS dans la plupart des jeux, mais suffit pour tester l'UI.
+    _kb = Controller()
+    _SCAN_TO_CHAR = {0x11: "z", 0x1E: "q", 0x1F: "s", 0x20: "d"}
+
+    def key_down(scan):
+        _kb.press(_SCAN_TO_CHAR.get(scan, "z"))
+
+    def key_up(scan):
+        _kb.release(_SCAN_TO_CHAR.get(scan, "z"))
 
 
 def key_label(key):
@@ -37,10 +124,9 @@ def key_label(key):
 class ZQSDLoop:
     def __init__(self, root):
         self.root = root
-        self.keyboard = Controller()
 
         self.running = False              # boucle active ?
-        self.delay_ms = 100               # délai entre deux frappes
+        self.delay_ms = 100               # durée de maintien de chaque touche
         self.worker = None                # thread qui envoie les frappes
         self.toggle_key = DEFAULT_TOGGLE_KEY
         self.capturing = False            # en train de capturer une nouvelle touche ?
@@ -62,7 +148,6 @@ class ZQSDLoop:
         frame = tk.Frame(self.root, padx=16, pady=16)
         frame.pack()
 
-        # Titre / nom de l'appli.
         tk.Label(
             frame, text=APP_NAME, font=("TkDefaultFont", 16, "bold")
         ).grid(row=0, column=0, columnspan=2, pady=(0, 12))
@@ -73,7 +158,6 @@ class ZQSDLoop:
             row=1, column=1, padx=(8, 0), sticky="e"
         )
 
-        # Ligne pour changer la touche d'activation.
         tk.Label(frame, text="Touche :").grid(row=2, column=0, sticky="w", pady=(8, 0))
         self.key_button = tk.Button(
             frame, text=key_label(self.toggle_key), command=self.capture_key
@@ -89,12 +173,17 @@ class ZQSDLoop:
         self.button.grid(row=4, column=0, columnspan=2, sticky="ew")
 
         self.hint = tk.Label(
-            frame,
-            text=self._hint_text(),
-            fg="gray",
-            font=("TkDefaultFont", 8),
+            frame, text=self._hint_text(), fg="gray", font=("TkDefaultFont", 8)
         )
         self.hint.grid(row=5, column=0, columnspan=2, pady=(8, 0))
+
+        if not IS_WINDOWS:
+            tk.Label(
+                frame,
+                text="(Hors Windows : mode test, inactif dans les jeux)",
+                fg="orange",
+                font=("TkDefaultFont", 8),
+            ).grid(row=6, column=0, columnspan=2, pady=(4, 0))
 
     def _hint_text(self):
         return f"{key_label(self.toggle_key)} démarre / arrête la boucle"
@@ -103,7 +192,7 @@ class ZQSDLoop:
     def _read_delay(self):
         try:
             value = int(self.delay_var.get())
-            return max(1, value)  # au moins 1 ms pour ne pas saturer le CPU
+            return max(1, value)
         except ValueError:
             return self.delay_ms
 
@@ -133,16 +222,23 @@ class ZQSDLoop:
 
     def _loop(self):
         delay = self.delay_ms / 1000.0
-        while self.running:
-            for key in SEQUENCE:
-                if not self.running:
-                    break
-                self.keyboard.press(key)
-                self.keyboard.release(key)
-                time.sleep(delay)
+        held = None
+        try:
+            while self.running:
+                for _, scan in SEQUENCE:
+                    if not self.running:
+                        break
+                    key_down(scan)
+                    held = scan
+                    time.sleep(delay)
+                    key_up(scan)
+                    held = None
+        finally:
+            # Sécurité : on relâche toute touche restée enfoncée.
+            if held is not None:
+                key_up(held)
 
     def _on_key(self, key):
-        # On revient sur le thread tkinter pour manipuler l'UI sans risque.
         if self.capturing:
             self.root.after(0, lambda: self._set_toggle_key(key))
         elif key == self.toggle_key:
